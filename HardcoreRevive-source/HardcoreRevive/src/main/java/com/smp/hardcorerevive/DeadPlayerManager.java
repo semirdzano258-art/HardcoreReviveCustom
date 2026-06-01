@@ -1,135 +1,5 @@
 package com.smp.hardcorerevive;
 
-import org.bukkit.*;
-import org.bukkit.block.Block;
-import org.bukkit.block.BlockFace;
-import org.bukkit.entity.Player;
-import org.bukkit.event.EventHandler;
-import org.bukkit.event.Listener;
-import org.bukkit.event.block.BlockPlaceEvent;
-import org.bukkit.inventory.ItemStack;
-import org.bukkit.inventory.meta.SkullMeta;
-import org.bukkit.scheduler.BukkitRunnable;
-
-import java.util.*;
-
-public class AltarListener implements Listener {
-
-    private final HardcoreRevive plugin;
-    private final Set<Location> activatingAltars = new HashSet<>();
-
-    public AltarListener(HardcoreRevive plugin) {
-        this.plugin = plugin;
-    }
-
-    @EventHandler
-    public void onBlockPlace(BlockPlaceEvent event) {
-        Player placer = event.getPlayer();
-        Block placed = event.getBlockPlaced();
-
-        if (placed.getType() != Material.PLAYER_HEAD && placed.getType() != Material.PLAYER_WALL_HEAD) return;
-
-        Block below = placed.getRelative(BlockFace.DOWN);
-        if (below.getType() != Material.OBSIDIAN) return;
-
-        ItemStack item = event.getItemInHand();
-        if (item.getItemMeta() == null) return;
-
-        SkullMeta meta = (SkullMeta) item.getItemMeta();
-        if (meta.getOwnerProfile() == null) return;
-
-        String deadPlayerName = meta.getOwnerProfile().getName();
-        if (deadPlayerName == null) return;
-
-        if (meta.getLore() == null || meta.getLore().stream().noneMatch(l -> l.contains("Objet de Réanimation"))) return;
-
-        UUID deadUUID = null;
-        for (UUID uuid : plugin.getDeadPlayerManager().getDeadPlayers()) {
-            OfflinePlayer op = Bukkit.getOfflinePlayer(uuid);
-            if (op.getName() != null && op.getName().equalsIgnoreCase(deadPlayerName)) {
-                deadUUID = uuid;
-                break;
-            }
-        }
-
-        if (deadUUID == null) {
-            placer.sendMessage("§eCette tête n'appartient pas à un joueur mort sur ce serveur.");
-            return;
-        }
-
-        ReviveCost cost = plugin.getDeadPlayerManager().getReviveCost(deadUUID);
-
-        if (!cost.hasEnoughItems(placer)) {
-            placer.sendMessage(cost.getMissingItemsMessage());
-            return;
-        }
-
-        Location altarLoc = placed.getLocation();
-        if (activatingAltars.contains(altarLoc)) return;
-
-        final UUID finalDeadUUID = deadUUID;
-        startReviveAnimation(placer, altarLoc, finalDeadUUID, deadPlayerName, cost);
-    }
-
-    private void startReviveAnimation(Player placer, Location altarLoc, UUID deadUUID, String deadName, ReviveCost cost) {
-        activatingAltars.add(altarLoc);
-        cost.removeItems(placer);
-
-        Bukkit.broadcastMessage("§6✨ §l" + placer.getName() + "§r§6 tente de réanimer §l" + deadName + "§r§6...");
-
-        World world = altarLoc.getWorld();
-
-        new BukkitRunnable() {
-            int ticks = 0;
-
-            @Override
-            public void run() {
-                ticks++;
-
-                world.spawnParticle(Particle.TOTEM_OF_UNDYING, altarLoc.clone().add(0.5, 1, 0.5), 10, 0.3, 0.5, 0.3, 0.05);
-                world.spawnParticle(Particle.ENCHANT, altarLoc.clone().add(0.5, 0.5, 0.5), 15, 0.5, 0.5, 0.5, 0.1);
-                world.spawnParticle(Particle.END_ROD, altarLoc.clone().add(0.5, 1, 0.5), 5, 0.2, 0.5, 0.2, 0.02);
-
-                if (ticks % 10 == 0) {
-                    world.playSound(altarLoc, Sound.BLOCK_ENCHANTMENT_TABLE_USE, 1.0f, 1.0f + (ticks * 0.05f));
-                }
-
-                int progress = (int) ((ticks / 100.0) * 20);
-                String bar = "§a" + "█".repeat(progress) + "§7" + "█".repeat(20 - progress);
-                placer.sendActionBar("§6Réanimation en cours... " + bar);
-
-                if (ticks >= 100) {
-                    activatingAltars.remove(altarLoc);
-
-                    Block skull = altarLoc.getBlock();
-                    skull.setType(Material.AIR);
-
-                    world.spawnParticle(Particle.TOTEM_OF_UNDYING, altarLoc.clone().add(0.5, 1, 0.5), 200, 0.5, 1, 0.5, 0.1);
-                    world.playSound(altarLoc, Sound.ENTITY_PLAYER_LEVELUP, 1.0f, 1.0f);
-                    world.strikeLightningEffect(altarLoc);
-
-                    plugin.getDeathListener().unlockSpectator(deadUUID);
-                    plugin.getDeadPlayerManager().revivePlayer(deadUUID);
-
-                    Bukkit.broadcastMessage("§a✨ §l" + deadName + "§r§a a été arraché à l'au-delà par §l" + placer.getName() + "§r§a !");
-                    cancel();
-                }
-            }
-        }.runTaskTimer(plugin, 0L, 1L);
-    }
-}
-Commit et dis moi quand c'est fait, je te donne le suivant ! 🎮Vous avez dit : cbn?package com.smp.hardcorerevive;
-
-import org.bukkit.*;
-import org.bukkit.block.Block;
-import org.bukkit.block.BlockFace;
-import org.bukkit.entity.Player;
-import org.bukkit.event.EventHandler;
-import org.bukkit.event.Listener;
-import org.bukkit.event.block.BlockPlaceEvent;
-import org.bukkit.ipastedcbn?06:52Claude a répondu : Oui c'est bon !Oui c'est bon ! Commit et passe au suivant — DeadPlayerManager.java :
-javapackage com.smp.hardcorerevive;
-
 import org.bukkit.Bukkit;
 import org.bukkit.GameMode;
 import org.bukkit.Location;
@@ -176,11 +46,11 @@ public class DeadPlayerManager {
                 p.setGameMode(GameMode.SPECTATOR);
                 int deaths = deathCounts.getOrDefault(uuid, 1);
                 if (deaths == 1) {
-                    p.sendMessage("§c§lVous êtes mort ! §r§cC'est votre §l1ère mort§r§c — la réanimation est §aGRATUITE§r§c !");
-                    p.sendMessage("§7Vos amis ont §f24h §7pour ramasser votre tête et la poser sur de l'§fObsidienne§7.");
+                    p.sendMessage("\u00a7c\u00a7lVous etes mort ! \u00a7r\u00a7cPremiere mort - reanimation \u00a7aGRATUITE\u00a7r\u00a7c !");
+                    p.sendMessage("\u00a77Vos amis ont \u00a7f24h \u00a77pour ramasser votre tete.");
                 } else {
-                    p.sendMessage("§c§lVous êtes mort ! §r§cMort n°§l" + deaths + "§r§c — la réanimation coûte des ressources !");
-                    p.sendMessage("§7Vos amis ont §f24h §7pour ramasser votre tête.");
+                    p.sendMessage("\u00a7c\u00a7lVous etes mort ! \u00a7r\u00a7cMort n\u00b0\u00a7l" + deaths + "\u00a7r\u00a7c - la reanimation coute des ressources !");
+                    p.sendMessage("\u00a77Vos amis ont \u00a7f24h \u00a77pour ramasser votre tete.");
                 }
             }
         }, 20L);
@@ -194,10 +64,10 @@ public class DeadPlayerManager {
 
             Player dead = Bukkit.getPlayer(uuid);
             if (dead != null) {
-                dead.sendMessage("§a✅ Votre tête a été ramassée ! Vos amis peuvent vous réanimer sans limite de temps.");
+                dead.sendMessage("\u00a7aVotre tete a ete ramassee ! Vos amis peuvent vous reranimer sans limite de temps.");
             }
             String name = Bukkit.getOfflinePlayer(uuid).getName();
-            Bukkit.broadcastMessage("§e✅ La tête de §l" + name + "§r§e a été ramassée ! Le compte à rebours est arrêté.");
+            Bukkit.broadcastMessage("\u00a7eLa tete de \u00a7l" + name + "\u00a7r\u00a7e a ete ramassee ! Le compte a rebours est arrete.");
         }
     }
 
@@ -237,7 +107,7 @@ public class DeadPlayerManager {
             player.setGameMode(GameMode.SURVIVAL);
             player.setHealth(2.0);
             player.setFoodLevel(20);
-            player.sendMessage("§a§lVous avez été réanimé ! §r§aSoyez prudent, vous n'avez qu'un cœur !");
+            player.sendMessage("\u00a7a\u00a7lVous avez ete reamine ! \u00a7r\u00a7aSoyez prudent, vous n'avez qu'un coeur !");
         }
     }
 
@@ -249,13 +119,13 @@ public class DeadPlayerManager {
         saveDeadPlayers();
 
         String name = Bukkit.getOfflinePlayer(uuid).getName();
-        Bukkit.getBanList(org.bukkit.BanList.Type.NAME).addBan(name, "Vous n'avez pas été réanimé à temps (24h écoulées).", null, "HardcoreRevive");
+        Bukkit.getBanList(org.bukkit.BanList.Type.NAME).addBan(name, "Non reamine a temps (24h).", null, "HardcoreRevive");
 
         Player player = Bukkit.getPlayer(uuid);
         if (player != null) {
-            player.kickPlayer("§c§lVous n'avez pas été réanimé à temps.\n§rLes 24h se sont écoulées sans que votre tête soit ramassée.");
+            player.kickPlayer("\u00a7c\u00a7lVous n'avez pas ete reamine a temps.\n\u00a7rLes 24h se sont ecoulees.");
         }
-        Bukkit.broadcastMessage("§c☠ §l" + name + "§r§c a été banni définitivement — personne n'a ramassé sa tête en 24h.");
+        Bukkit.broadcastMessage("\u00a7c\u00a7l" + name + "\u00a7r\u00a7c a ete banni - personne n'a ramasse sa tete en 24h.");
     }
 
     private void startBanCheckTask() {
@@ -271,10 +141,10 @@ public class DeadPlayerManager {
                 long remaining = getRemainingTimeMs(uuid);
                 String name = Bukkit.getOfflinePlayer(uuid).getName();
                 if (remaining > 0 && remaining <= 60 * 60 * 1000L && remaining > 59 * 60 * 1000L) {
-                    Bukkit.broadcastMessage("§e⚠ Il reste §l1 heure §r§epour ramasser la tête de §l" + name + "§r§e !");
+                    Bukkit.broadcastMessage("\u00a7eIl reste \u00a7l1 heure \u00a7r\u00a7epour ramasser la tete de \u00a7l" + name + "\u00a7r\u00a7e !");
                 }
                 if (remaining > 0 && remaining <= 30 * 60 * 1000L && remaining > 29 * 60 * 1000L) {
-                    Bukkit.broadcastMessage("§c⚠ Il reste §l30 minutes §r§cpour ramasser la tête de §l" + name + "§r§c !");
+                    Bukkit.broadcastMessage("\u00a7cIl reste \u00a7l30 minutes \u00a7r\u00a7cpour ramasser la tete de \u00a7l" + name + "\u00a7r\u00a7c !");
                 }
             }
         }, 20 * 60L, 20 * 60L);
@@ -362,6 +232,6 @@ public class DeadPlayerManager {
                 } catch (Exception ignored) {}
             }
         }
-        plugin.getLogger().info("Chargé " + deadPlayers.size() + " joueur(s) mort(s).");
+        plugin.getLogger().info("Charge " + deadPlayers.size() + " joueur(s) mort(s).");
     }
 }
