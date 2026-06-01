@@ -1,0 +1,17 @@
+name: HardcoreRevive
+version: 1.0.0
+main: com.smp.hardcorerevive.HardcoreRevive
+api-version: "1.21"
+description: Systeme de reanimation hardcore - autel avec tete + 2 totems + 2 diamants
+author: SMP Custom
+
+commands:
+  revive:
+    description: Revive un joueur mort (admin)
+    usage: /revive <joueur>
+    permission: hardcorerevive.admin
+
+permissions:
+  hardcorerevive.admin:
+    description: Permet de revive un joueur via commande
+    default: op
