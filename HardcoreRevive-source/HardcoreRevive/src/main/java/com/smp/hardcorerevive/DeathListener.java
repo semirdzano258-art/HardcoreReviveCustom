@@ -59,7 +59,7 @@ public class DeathListener implements Listener {
 
         if (player.getGameMode() != GameMode.SPECTATOR) return;
         if (!spectatorLocks.containsKey(uuid)) return;
-
+        if (player.isOp()) return;
         Location lock = spectatorLocks.get(uuid);
         Location to = event.getTo();
 
