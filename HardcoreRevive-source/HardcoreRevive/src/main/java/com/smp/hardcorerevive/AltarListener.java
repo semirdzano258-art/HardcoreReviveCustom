@@ -41,7 +41,7 @@ public class AltarListener implements Listener {
         String deadPlayerName = meta.getOwnerProfile().getName();
         if (deadPlayerName == null) return;
 
-        if (meta.getLore() == null || meta.getLore().stream().noneMatch(l -> l.contains("Objet de Réanimation"))) return;
+        if (meta.getLore() == null || meta.getLore().stream().noneMatch(l -> l.contains("Objet de Reanimation"))) return;
 
         UUID deadUUID = null;
         for (UUID uuid : plugin.getDeadPlayerManager().getDeadPlayers()) {
@@ -53,7 +53,7 @@ public class AltarListener implements Listener {
         }
 
         if (deadUUID == null) {
-            placer.sendMessage("§eCette tête n'appartient pas à un joueur mort sur ce serveur.");
+            placer.sendMessage("\u00a7eCette tete n'appartient pas a un joueur mort sur ce serveur.");
             return;
         }
 
@@ -75,7 +75,7 @@ public class AltarListener implements Listener {
         activatingAltars.add(altarLoc);
         cost.removeItems(placer);
 
-        Bukkit.broadcastMessage("§6✨ §l" + placer.getName() + "§r§6 tente de réanimer §l" + deadName + "§r§6...");
+        Bukkit.broadcastMessage("\u00a76\u2728 \u00a7l" + placer.getName() + "\u00a7r\u00a76 tente de reanimat \u00a7l" + deadName + "\u00a7r\u00a76...");
 
         World world = altarLoc.getWorld();
 
@@ -95,8 +95,8 @@ public class AltarListener implements Listener {
                 }
 
                 int progress = (int) ((ticks / 100.0) * 20);
-                String bar = "§a" + "█".repeat(progress) + "§7" + "█".repeat(20 - progress);
-                placer.sendActionBar("§6Réanimation en cours... " + bar);
+                String bar = "\u00a7a" + "\u2588".repeat(progress) + "\u00a77" + "\u2588".repeat(20 - progress);
+                placer.sendActionBar("\u00a76Reanimation en cours... " + bar);
 
                 if (ticks >= 100) {
                     activatingAltars.remove(altarLoc);
@@ -108,10 +108,10 @@ public class AltarListener implements Listener {
                     world.playSound(altarLoc, Sound.ENTITY_PLAYER_LEVELUP, 1.0f, 1.0f);
                     world.strikeLightningEffect(altarLoc);
 
-                    plugin.getDeathListener().unlockSpectator(deadUUID);
+                    plugin.getDeathListener().unlockSpectator(deadUUID, altarLoc);
                     plugin.getDeadPlayerManager().revivePlayer(deadUUID);
 
-                    Bukkit.broadcastMessage("§a✨ §l" + deadName + "§r§a a été arraché à l'au-delà par §l" + placer.getName() + "§r§a !");
+                    Bukkit.broadcastMessage("\u00a7a\u2728 \u00a7l" + deadName + "\u00a7r\u00a7a a ete arrache a l'au-dela par \u00a7l" + placer.getName() + "\u00a7r\u00a7a !");
                     cancel();
                 }
             }
