@@ -2,6 +2,7 @@ package com.smp.hardcorerevive;
 
 import com.destroystokyo.paper.profile.PlayerProfile;
 import org.bukkit.Bukkit;
+import org.bukkit.ChatColor;
 import org.bukkit.GameMode;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -17,6 +18,8 @@ import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.SkullMeta;
+import org.bukkit.scoreboard.Scoreboard;
+import org.bukkit.scoreboard.Team;
 import org.bukkit.scheduler.BukkitRunnable;
 
 import java.util.*;
@@ -45,6 +48,15 @@ public class DeathListener implements Listener {
         Location dropLoc = deathLoc.clone().add(0, 0.5, 0);
         Item droppedItem = player.getWorld().dropItem(dropLoc, skull);
         droppedItem.setVelocity(new org.bukkit.util.Vector(0, 0.1, 0));
+        droppedItem.setInvulnerable(true);
+        droppedItem.setUnlimitedLifetime(true);
+        droppedItem.setGlowing(true);
+
+        Scoreboard board = Bukkit.getScoreboardManager().getMainScoreboard();
+        Team glowTeam = board.getTeam("skull_glow");
+        if (glowTeam == null) glowTeam = board.registerNewTeam("skull_glow");
+        glowTeam.setColor(ChatColor.RED);
+        glowTeam.addEntry(droppedItem.getUniqueId().toString());
 
         startBeam(uuid, deathLoc);
         spectatorLocks.put(uuid, deathLoc);
@@ -120,7 +132,7 @@ public class DeathListener implements Listener {
                     if (cost.isFree()) {
                         picker.sendMessage("\u00a7a\u2728 Premiere mort - Posez simplement la tete sur de l'\u00a7nObsidienne \u00a7r\u00a7apour le reanimater gratuitement !");
                     } else {
-                        picker.sendMessage("\u00a7cRessources necessaires pour reanimater \u00a7l" + deadName + "\u00a7r\u00a7c :");
+                        picker.sendMessage("\u00a7cRessources necessaires pour reanimat \u00a7l" + deadName + "\u00a7r\u00a7c :");
                         for (String line : cost.toLore()) {
                             if (!line.contains("Posez")) picker.sendMessage("  " + line);
                         }
