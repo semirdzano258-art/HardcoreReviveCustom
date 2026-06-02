@@ -6,6 +6,7 @@ import org.bukkit.GameMode;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.Particle;
+import org.bukkit.entity.Item;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -34,19 +35,28 @@ public class DeathListener implements Listener {
     public void onPlayerDeath(PlayerDeathEvent event) {
         Player player = event.getEntity();
         UUID uuid = player.getUniqueId();
-        Location deathLoc = player.getLocation();
+        Location deathLoc = player.getLocation().clone();
 
         plugin.getDeadPlayerManager().markAsDead(player);
 
         ReviveCost cost = plugin.getDeadPlayerManager().getReviveCost(uuid);
         ItemStack skull = createPlayerHead(player, cost);
-        player.getWorld().dropItemNaturally(deathLoc, skull);
+
+        Location dropLoc = deathLoc.clone().add(0, 0.5, 0);
+        Item droppedItem = player.getWorld().dropItem(dropLoc, skull);
+        droppedItem.setVelocity(new org.bukkit.util.Vector(0, 0.1, 0));
 
         startBeam(uuid, deathLoc);
         spectatorLocks.put(uuid, deathLoc);
 
         int deaths = plugin.getDeadPlayerManager().getDeathCount(uuid);
-        Bukkit.broadcastMessage("§c☠ §l" + player.getName() + "§r§c est mort ! (Mort n°" + deaths + ") Vous avez §l24h §r§cpour ramasser sa tête !");
+        int x = (int) deathLoc.getX();
+        int y = (int) deathLoc.getY();
+        int z = (int) deathLoc.getZ();
+
+        Bukkit.broadcastMessage("\u00a7c\u2620 \u00a7l" + player.getName() + "\u00a7r\u00a7c est mort ! (Mort n\u00b0" + deaths + ")");
+        Bukkit.broadcastMessage("\u00a77Coordonnees : \u00a7fX: " + x + " Y: " + y + " Z: " + z);
+        Bukkit.broadcastMessage("\u00a77Vous avez \u00a7l24h \u00a7r\u00a77pour ramasser sa tete !");
 
         event.setKeepInventory(false);
         event.getDrops().clear();
@@ -60,6 +70,7 @@ public class DeathListener implements Listener {
         if (player.getGameMode() != GameMode.SPECTATOR) return;
         if (!spectatorLocks.containsKey(uuid)) return;
         if (player.isOp()) return;
+
         Location lock = spectatorLocks.get(uuid);
         Location to = event.getTo();
 
@@ -79,7 +90,7 @@ public class DeathListener implements Listener {
             }
             Location newLoc = lock.clone().add(dir.getX(), to.getY() - lock.getY(), dir.getZ());
             player.teleport(newLoc);
-            player.sendActionBar("§c⚠ Vous ne pouvez pas vous éloigner à plus de 100 blocs de votre mort !");
+            player.sendActionBar("\u00a7c\u26a0 Vous ne pouvez pas vous eloigner a plus de 100 blocs de votre mort !");
         }
     }
 
@@ -105,15 +116,15 @@ public class DeathListener implements Listener {
                     stopBeam(uuid);
 
                     ReviveCost cost = plugin.getDeadPlayerManager().getReviveCost(uuid);
-                    picker.sendMessage("§6☠ §lVous avez récupéré la tête de §r§l" + deadName + "§r§6 !");
+                    picker.sendMessage("\u00a76\u2620 \u00a7lVous avez recupere la tete de \u00a7r\u00a7l" + deadName + "\u00a7r\u00a76 !");
                     if (cost.isFree()) {
-                        picker.sendMessage("§a✨ Première mort — Posez simplement la tête sur de l'§nObsidienne §r§apour le réanimer gratuitement !");
+                        picker.sendMessage("\u00a7a\u2728 Premiere mort - Posez simplement la tete sur de l'\u00a7nObsidienne \u00a7r\u00a7apour le reanimater gratuitement !");
                     } else {
-                        picker.sendMessage("§cRessources nécessaires pour réanimer §l" + deadName + "§r§c :");
+                        picker.sendMessage("\u00a7cRessources necessaires pour reanimater \u00a7l" + deadName + "\u00a7r\u00a7c :");
                         for (String line : cost.toLore()) {
                             if (!line.contains("Posez")) picker.sendMessage("  " + line);
                         }
-                        picker.sendMessage("§7Posez la tête sur de l'§fObsidienne §7avec ces items dans l'inventaire.");
+                        picker.sendMessage("\u00a77Posez la tete sur de l'\u00a7fObsidienne \u00a77avec ces items dans l'inventaire.");
                     }
                 }
                 break;
@@ -130,23 +141,34 @@ public class DeathListener implements Listener {
             Bukkit.getScheduler().runTaskLater(plugin, () -> {
                 player.setGameMode(GameMode.SPECTATOR);
                 Location deathLoc = plugin.getDeadPlayerManager().getDeathLocation(uuid);
-                if (deathLoc != null) spectatorLocks.put(uuid, deathLoc);
+                if (deathLoc != null) {
+                    spectatorLocks.put(uuid, deathLoc);
+                    player.teleport(deathLoc.clone().add(0, 5, 0));
+                }
 
                 long remaining = plugin.getDeadPlayerManager().getRemainingTimeMs(uuid);
                 if (remaining > 0) {
                     long hours = remaining / 3600000;
                     long minutes = (remaining % 3600000) / 60000;
-                    player.sendMessage("§c§lVous êtes toujours mort. §r§cTemps restant : §l" + hours + "h " + minutes + "min");
+                    player.sendMessage("\u00a7c\u00a7lVous etes toujours mort. \u00a7r\u00a7cTemps restant : \u00a7l" + hours + "h " + minutes + "min");
                 } else if (plugin.getDeadPlayerManager().isHeadPickedUp(uuid)) {
-                    player.sendMessage("§a✅ Votre tête a été ramassée ! Vos amis peuvent vous réanimer à tout moment.");
+                    player.sendMessage("\u00a7a\u2705 Votre tete a ete ramassee ! Vos amis peuvent vous reanimat a tout moment.");
                 }
             }, 5L);
         }
     }
 
-    public void unlockSpectator(UUID uuid) {
+    public void unlockSpectator(UUID uuid, Location altarLoc) {
         spectatorLocks.remove(uuid);
         stopBeam(uuid);
+
+        Player player = Bukkit.getPlayer(uuid);
+        if (player != null && altarLoc != null) {
+            Location spawnLoc = altarLoc.clone().add(0.5, 1, 0.5);
+            spawnLoc.setYaw(0);
+            spawnLoc.setPitch(0);
+            player.teleport(spawnLoc);
+        }
     }
 
     private void startBeam(UUID uuid, Location loc) {
@@ -159,16 +181,28 @@ public class DeathListener implements Listener {
                     cancel();
                     return;
                 }
-                for (double y = 0; y <= 15; y += 0.5) {
+
+                for (double y = 0; y <= 100; y += 0.5) {
                     Location particleLoc = loc.clone().add(0, y, 0);
-                    loc.getWorld().spawnParticle(Particle.END_ROD, particleLoc, 1, 0.05, 0, 0.05, 0);
+                    loc.getWorld().spawnParticle(Particle.END_ROD, particleLoc, 3, 0.15, 0, 0.15, 0);
+                    loc.getWorld().spawnParticle(Particle.END_ROD, particleLoc, 2, 0.3, 0, 0.3, 0);
                 }
+
                 angle += 10;
                 for (int i = 0; i < 8; i++) {
                     double rad = Math.toRadians(angle + (i * 45));
                     double x = Math.cos(rad) * 1.5;
                     double z = Math.sin(rad) * 1.5;
                     loc.getWorld().spawnParticle(Particle.FLAME, loc.clone().add(x, 0.1, z), 1, 0, 0, 0, 0);
+                }
+
+                for (int i = 0; i < 6; i++) {
+                    double rad = Math.toRadians(-angle + (i * 60));
+                    double x = Math.cos(rad) * 3;
+                    double z = Math.sin(rad) * 3;
+                    loc.getWorld().spawnParticle(Particle.SOUL_FIRE_FLAME, loc.clone().add(x, 25, z), 1, 0, 0, 0, 0);
+                    loc.getWorld().spawnParticle(Particle.SOUL_FIRE_FLAME, loc.clone().add(x, 50, z), 1, 0, 0, 0, 0);
+                    loc.getWorld().spawnParticle(Particle.SOUL_FIRE_FLAME, loc.clone().add(x, 75, z), 1, 0, 0, 0, 0);
                 }
             }
         };
@@ -189,22 +223,22 @@ public class DeathListener implements Listener {
         meta.setPlayerProfile(profile);
 
         int deaths = plugin.getDeadPlayerManager().getDeathCount(player.getUniqueId());
-        meta.setDisplayName("§c☠ §lÂme de §r§c§l" + player.getName() + " §7(Mort n°" + deaths + ")");
+        meta.setDisplayName("\u00a7c\u2620 \u00a7lAme de \u00a7r\u00a7c\u00a7l" + player.getName() + " \u00a77(Mort n\u00b0" + deaths + ")");
 
         List<String> lore = new ArrayList<>();
-        lore.add("§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
-        lore.add("§6✦ §lObjet de Réanimation");
-        lore.add("§7Cette tête renferme l'âme de");
-        lore.add("§f§l" + player.getName() + "§r§7, prisonnier de l'au-delà.");
+        lore.add("\u00a78\u25ac\u25ac\u25ac\u25ac\u25ac\u25ac\u25ac\u25ac\u25ac\u25ac\u25ac\u25ac\u25ac\u25ac\u25ac\u25ac\u25ac\u25ac\u25ac\u25ac\u25ac");
+        lore.add("\u00a76\u2756 \u00a7lObjet de Reanimation");
+        lore.add("\u00a77Cette tete renferme l'ame de");
+        lore.add("\u00a7f\u00a7l" + player.getName() + "\u00a7r\u00a77, prisonnier de l'au-dela.");
         lore.add("");
-        lore.add("§e⚙ §lComment réanimer :");
-        lore.add("§7Posez cette tête sur un");
-        lore.add("§f§nBloc d'Obsidienne§r§7 avec les");
-        lore.add("§7ressources ci-dessous.");
+        lore.add("\u00a7e\u2699 \u00a7lComment reanimat :");
+        lore.add("\u00a77Posez cette tete sur un");
+        lore.add("\u00a7f\u00a7nBloc d'Obsidienne\u00a7r\u00a77 avec les");
+        lore.add("\u00a77ressources ci-dessous.");
         lore.add("");
         lore.addAll(cost.toLore());
         lore.add("");
-        lore.add("§8▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
+        lore.add("\u00a78\u25ac\u25ac\u25ac\u25ac\u25ac\u25ac\u25ac\u25ac\u25ac\u25ac\u25ac\u25ac\u25ac\u25ac\u25ac\u25ac\u25ac\u25ac\u25ac\u25ac\u25ac");
 
         meta.setLore(lore);
         skull.setItemMeta(meta);
