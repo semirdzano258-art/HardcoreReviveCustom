@@ -83,6 +83,11 @@ public class DeadPlayerManager {
         return deathCounts.getOrDefault(uuid, 0);
     }
 
+    public void resetDeathCount(UUID uuid) {
+        deathCounts.put(uuid, 0);
+        saveDeadPlayers();
+    }
+
     public long getRemainingTimeMs(UUID uuid) {
         Long deathTime = deathTimestamps.get(uuid);
         if (deathTime == null) return -1;
